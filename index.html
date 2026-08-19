@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caderno de Estudos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR: binder spine with subject tabs -->
+  <aside class="spine" id="spine">
+    <div class="spine-top">
+      <span class="spine-mark">§</span>
+      <h1 class="spine-title">Caderno<br>de Estudos</h1>
+    </div>
+
+    <nav class="tab-list" id="tabList"><!-- tabs injected via JS --></nav>
+
+    <button class="btn-new-subject" id="btnNewSubject">
+      <span class="plus">+</span> nova disciplina
+    </button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="sheet">
+
+    <!-- Empty state -->
+    <section class="view" id="view-empty">
+      <div class="empty-hero">
+        <p class="eyebrow">// comece por aqui</p>
+        <h2>Nenhuma disciplina cadastrada ainda.</h2>
+        <p class="empty-sub">Crie sua primeira disciplina para organizar questões e conteúdos de estudo.</p>
+        <button class="btn-primary" id="btnNewSubjectEmpty">Criar disciplina</button>
+      </div>
+    </section>
+
+    <!-- Subject view -->
+    <section class="view" id="view-subject" hidden>
+
+      <header class="sheet-header">
+        <div class="sheet-header-text">
+          <p class="eyebrow" id="subjectEyebrow">disciplina</p>
+          <h2 id="subjectName">—</h2>
+        </div>
+        <div class="sheet-header-actions">
+          <span class="stat" id="statQuestoes">0 questões</span>
+          <span class="stat" id="statAcerto">— % de acerto</span>
+          <button class="icon-btn danger" id="btnDeleteSubject" title="Excluir disciplina">excluir</button>
+        </div>
+      </header>
+
+      <div class="tabs-strip">
+        <button class="strip-tab is-active" data-panel="questoes">Questões</button>
+        <button class="strip-tab" data-panel="conteudo">Conteúdo</button>
+        <button class="strip-tab" data-panel="cadastrar">Cadastrar questão</button>
+      </div>
+
+      <!-- PANEL: Questões -->
+      <div class="panel" id="panel-questoes">
+        <div class="panel-toolbar">
+          <div class="seg" id="filtroTipo">
+            <button class="seg-btn is-active" data-filtro="todas">todas</button>
+            <button class="seg-btn" data-filtro="objetiva">objetivas</button>
+            <button class="seg-btn" data-filtro="certo_errado">certo/errado</button>
+          </div>
+          <button class="link-btn" id="btnResetQuiz">reiniciar respostas</button>
+        </div>
+        <div class="question-list" id="questionList"><!-- perguntas injetadas --></div>
+        <p class="hint-empty" id="questoesEmptyHint" hidden>Nenhuma questão cadastrada ainda. Use a aba <strong>Cadastrar questão</strong>.</p>
+      </div>
+
+      <!-- PANEL: Conteúdo -->
+      <div class="panel" id="panel-conteudo" hidden>
+        <form class="note-form" id="noteForm">
+          <input type="text" id="noteTitulo" placeholder="Título da anotação" required>
+          <textarea id="noteTexto" rows="4" placeholder="Escreva o conteúdo, resumo ou anotação de aula..." required></textarea>
+          <button type="submit" class="btn-primary small">Salvar anotação</button>
+        </form>
+        <div class="note-list" id="noteList"><!-- notas injetadas --></div>
+        <p class="hint-empty" id="notesEmptyHint" hidden>Nenhum conteúdo salvo ainda. Escreva sua primeira anotação acima.</p>
+      </div>
+
+      <!-- PANEL: Cadastrar questão -->
+      <div class="panel" id="panel-cadastrar" hidden>
+        <form class="question-form" id="questionForm">
+
+          <div class="field">
+            <label>Tipo de questão</label>
+            <div class="seg" id="tipoQuestaoSeg">
+              <button type="button" class="seg-btn is-active" data-tipo="objetiva">Objetiva (múltipla escolha)</button>
+              <button type="button" class="seg-btn" data-tipo="certo_errado">Certo / Errado</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="qEnunciado">Enunciado</label>
+            <textarea id="qEnunciado" rows="3" placeholder="Digite a pergunta..." required></textarea>
+          </div>
+
+          <div class="field" id="alternativasWrap">
+            <label>Alternativas <span class="label-hint">(marque a correta)</span></label>
+            <div class="alt-list" id="altList"><!-- alternativas injetadas --></div>
+            <button type="button" class="link-btn" id="btnAddAlt">+ adicionar alternativa</button>
+          </div>
+
+          <div class="field" id="certoErradoWrap" hidden>
+            <label>Resposta correta</label>
+            <div class="seg" id="ceSeg">
+              <button type="button" class="seg-btn is-active" data-ce="certo">Certo</button>
+              <button type="button" class="seg-btn" data-ce="errado">Errado</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="qExplicacao">Comentário / justificativa <span class="label-hint">(opcional)</span></label>
+            <textarea id="qExplicacao" rows="2" placeholder="Explicação exibida após responder..."></textarea>
+          </div>
+
+          <button type="submit" class="btn-primary">Cadastrar questão</button>
+        </form>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<!-- Modal: nova disciplina -->
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal">
+    <h3>Nova disciplina</h3>
+    <form id="subjectForm">
+      <input type="text" id="subjectNameInput" placeholder="Ex: Direito Constitucional" required maxlength="40" autocomplete="off">
+      <label class="color-label">Cor da aba</label>
+      <div class="color-picker" id="colorPicker"><!-- swatches injetadas --></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="btnCancelSubject">Cancelar</button>
+        <button type="submit" class="btn-primary">Criar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
