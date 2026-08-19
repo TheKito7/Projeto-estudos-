@@ -109,7 +109,7 @@
 
           <div class="field">
             <label for="qEnunciado">Enunciado</label>
-            <textarea id="qEnunciado" rows="3" placeholder="Digite a pergunta..." required></textarea>
+            <textarea id="qEnunciado" rows="3" placeholder="Digite a pergunta..."></textarea>
           </div>
 
           <div class="field" id="alternativasWrap">
@@ -130,6 +130,8 @@
             <label for="qExplicacao">Comentário / justificativa <span class="label-hint">(opcional)</span></label>
             <textarea id="qExplicacao" rows="2" placeholder="Explicação exibida após responder..."></textarea>
           </div>
+
+          <p class="form-error" id="questionFormError" hidden></p>
 
           <button type="submit" class="btn-primary">Cadastrar questão</button>
         </form>

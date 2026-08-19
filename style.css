@@ -497,6 +497,15 @@ input[type=text]:focus, textarea:focus{
 }
 .alt-row .alt-del:hover{ color:var(--wrong); }
 
+.form-error{
+  background:var(--wrong-bg);
+  color:#7A3323;
+  border-radius:var(--radius);
+  padding:10px 12px;
+  font-size:13.5px;
+  margin-bottom:16px;
+}
+
 /* =========================================================
    MODAL
 ========================================================= */

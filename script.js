@@ -69,6 +69,7 @@ const el = {
   certoErradoWrap: document.getElementById("certoErradoWrap"),
   ceSeg: document.getElementById("ceSeg"),
   qExplicacao: document.getElementById("qExplicacao"),
+  questionFormError: document.getElementById("questionFormError"),
 
   modalBackdrop: document.getElementById("modalBackdrop"),
   subjectForm: document.getElementById("subjectForm"),
@@ -281,7 +282,7 @@ function buildAltRows(alternativas){
     row.dataset.id = a.id;
     row.innerHTML = `
       <input type="radio" name="corretaRadio" ${i===0 ? "checked":""} data-id="${a.id}">
-      <input type="text" placeholder="Alternativa ${i+1}" value="${escapeAttr(a.texto||"")}" required>
+      <input type="text" placeholder="Alternativa ${i+1}" value="${escapeAttr(a.texto||"")}">
       <button type="button" class="alt-del" title="remover">×</button>
     `;
     row.querySelector(".alt-del").addEventListener("click", () => {
@@ -309,6 +310,7 @@ el.tipoQuestaoSeg.addEventListener("click", (e) => {
   [...el.tipoQuestaoSeg.children].forEach(b => b.classList.toggle("is-active", b === btn));
   el.alternativasWrap.hidden = novoTipoQuestao !== "objetiva";
   el.certoErradoWrap.hidden = novoTipoQuestao !== "certo_errado";
+  clearQuestionFormError();
 });
 
 el.ceSeg.addEventListener("click", (e) => {
@@ -318,14 +320,29 @@ el.ceSeg.addEventListener("click", (e) => {
   [...el.ceSeg.children].forEach(b => b.classList.toggle("is-active", b === btn));
 });
 
+function showQuestionFormError(msg){
+  el.questionFormError.textContent = msg;
+  el.questionFormError.hidden = false;
+}
+function clearQuestionFormError(){
+  el.questionFormError.hidden = true;
+  el.questionFormError.textContent = "";
+}
+
 el.questionForm.addEventListener("submit", (e) => {
   e.preventDefault();
+  clearQuestionFormError();
+
   const subject = getActiveSubject();
   if(!subject) return;
 
   const enunciado = el.qEnunciado.value.trim();
   const explicacao = el.qExplicacao.value.trim();
-  if(!enunciado) return;
+  if(!enunciado){
+    showQuestionFormError("Escreva o enunciado da questão.");
+    el.qEnunciado.focus();
+    return;
+  }
 
   let novaQuestao;
   if(novoTipoQuestao === "certo_errado"){
@@ -334,7 +351,10 @@ el.questionForm.addEventListener("submit", (e) => {
     const rows = [...el.altList.querySelectorAll(".alt-row")];
     const alternativas = rows.map(r => ({ id: r.dataset.id, texto: r.querySelector('input[type=text]').value.trim() }))
                               .filter(a => a.texto);
-    if(alternativas.length < 2) return;
+    if(alternativas.length < 2){
+      showQuestionFormError("Adicione pelo menos 2 alternativas preenchidas.");
+      return;
+    }
     const radioChecked = el.altList.querySelector('input[type=radio]:checked');
     const corretaId = radioChecked ? radioChecked.dataset.id : alternativas[0].id;
     novaQuestao = { id: uid(), tipo:"objetiva", enunciado, alternativas, corretaId, explicacao };
