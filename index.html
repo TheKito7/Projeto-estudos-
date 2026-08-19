@@ -15,10 +15,16 @@
   <!-- SIDEBAR: binder spine with subject tabs -->
   <aside class="spine" id="spine">
     <div class="spine-top">
-      <span class="spine-mark">§</span>
+      <span class="spine-mark">Gb!</span>
       <h1 class="spine-title">Caderno<br>de Estudos</h1>
     </div>
 
+    <!-- 1. CAIXA DE PESQUISA -->
+    <div style="padding: 15px 15px 5px 15px;">
+      <input type="text" id="searchSubject" placeholder="Pesquisar disciplina..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; background: transparent; color: inherit;">
+    </div>
+
+    <!-- 2. LISTA DE ABAS (Agora usando apenas o NAV original) -->
     <nav class="tab-list" id="tabList"><!-- tabs injected via JS --></nav>
 
     <button class="btn-new-subject" id="btnNewSubject">
@@ -32,10 +38,10 @@
     <!-- Empty state -->
     <section class="view" id="view-empty">
       <div class="empty-hero">
-        <p class="eyebrow">// comece por aqui</p>
-        <h2>Nenhuma disciplina cadastrada ainda.</h2>
-        <p class="empty-sub">Crie sua primeira disciplina para organizar questões e conteúdos de estudo.</p>
-        <button class="btn-primary" id="btnNewSubjectEmpty">Criar disciplina</button>
+        <p class="eyebrow"></p>
+        <h2>GB.</h2>
+        <p class="empty-sub">Painel de estudos.</p>
+        <button class="btn-primary" id="btnNewSubjectEmpty">Painel disciplina</button>
       </div>
     </section>
 
@@ -46,6 +52,13 @@
         <div class="sheet-header-text">
           <p class="eyebrow" id="subjectEyebrow">disciplina</p>
           <h2 id="subjectName">—</h2>
+        </div>
+        <div class="sheet-header-actions">
+          <span class="stat" id="statQuestoes">0 questões</span>
+          <span class="stat" id="statAcerto">— % de acerto</span>
+          <!-- Botão de editar que acabamos de adicionar -->
+          <button class="icon-btn" id="btnEditSubject" title="Editar nome da disciplina">editar</button>
+          <button class="icon-btn danger" id="btnDeleteSubject" title="Excluir disciplina">excluir</button>
         </div>
         <div class="sheet-header-actions">
           <span class="stat" id="statQuestoes">0 questões</span>

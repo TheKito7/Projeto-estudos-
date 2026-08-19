@@ -77,6 +77,7 @@ function escapeHtml(text) {
    ELEMENTOS
 ========================================================= */
 const el = {
+  searchSubject: document.getElementById("searchSubject"),
   tabList: document.getElementById("tabList"),
   viewEmpty: document.getElementById("view-empty"),
   viewSubject: document.getElementById("view-subject"),
@@ -85,6 +86,7 @@ const el = {
   statQuestoes: document.getElementById("statQuestoes"),
   statAcerto: document.getElementById("statAcerto"),
   btnDeleteSubject: document.getElementById("btnDeleteSubject"),
+  btnEditSubject: document.getElementById("btnEditSubject"), // <-- NOVO BOTÃO DE EDITAR AQUI
 
   stripTabs: document.querySelectorAll(".strip-tab"),
   panelQuestoes: document.getElementById("panel-questoes"),
@@ -139,7 +141,16 @@ let corSelecionada = COLOR_OPTIONS[0];
 function renderTabs(){
   if (!el.tabList) return;
   el.tabList.innerHTML = "";
-  state.disciplinas.forEach(d => {
+  
+  // Lê o que foi digitado na barra de pesquisa (em letras minúsculas)
+  const termoPesquisa = el.searchSubject ? el.searchSubject.value.toLowerCase() : "";
+
+  // Filtra as disciplinas que contêm o texto pesquisado
+  const disciplinasFiltradas = state.disciplinas.filter(d => 
+    d.nome.toLowerCase().includes(termoPesquisa)
+  );
+
+  disciplinasFiltradas.forEach(d => {
     const btn = document.createElement("button");
     btn.className = "tab" + (d.id === state.activeSubjectId ? " is-active" : "");
     btn.innerHTML = `<span class="swatch" style="background:${d.cor}"></span><span>${escapeHtml(d.nome)}</span>`;
@@ -584,9 +595,8 @@ if (el.btnResetQuiz) {
 /* =========================================================
    CADASTRO E RENDER: ANOTAÇÕES E IMAGENS
 ========================================================= */
-let pendingImages = []; // Guarda as fotos temporariamente antes de salvar
+let pendingImages = []; 
 
-// 1. Processar a foto quando você clica em "Adicionar imagens"
 if (el.noteImagesInput) {
   el.noteImagesInput.addEventListener("change", (e) => {
     const files = Array.from(e.target.files);
@@ -594,7 +604,7 @@ if (el.noteImagesInput) {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
-        pendingImages.push(event.target.result); // Transforma em Base64
+        pendingImages.push(event.target.result); 
         renderImagePreviews();
       };
       reader.readAsDataURL(file);
@@ -602,7 +612,6 @@ if (el.noteImagesInput) {
   });
 }
 
-// 2. Mostrar miniatura da foto antes de salvar (se houver a div no HTML)
 function renderImagePreviews() {
   if (!el.imagePreviewList) return;
   el.imagePreviewList.innerHTML = "";
@@ -626,7 +635,6 @@ function renderImagePreviews() {
   });
 }
 
-// 3. Salvar a anotação ao clicar em "Salvar anotação"
 if (el.noteForm) {
   el.noteForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -637,7 +645,6 @@ if (el.noteForm) {
     const titulo = el.noteTitulo ? el.noteTitulo.value.trim() : "";
     const texto = el.noteTexto ? el.noteTexto.value.trim() : "";
 
-    // Se não tiver título, nem texto, nem imagem, não salva
     if (!titulo && !texto && pendingImages.length === 0) return; 
 
     const novaNota = {
@@ -652,7 +659,6 @@ if (el.noteForm) {
     
     saveState();
     
-    // Limpar o formulário para a próxima
     el.noteForm.reset();
     pendingImages = [];
     renderImagePreviews();
@@ -660,7 +666,6 @@ if (el.noteForm) {
   });
 }
 
-// 4. Exibir as anotações e fotos salvas na tela
 function renderNotes(subject) {
   if (!el.noteList) return;
   el.noteList.innerHTML = "";
@@ -684,11 +689,10 @@ function renderNotes(subject) {
     if (nota.texto) {
       const p = document.createElement("p");
       p.textContent = nota.texto;
-      p.style.whiteSpace = "pre-wrap"; // Mantém as quebras de linha que você digitar
+      p.style.whiteSpace = "pre-wrap"; 
       card.appendChild(p);
     }
 
-    // Se houver imagens salvas, desenha elas
     if (nota.imagens && nota.imagens.length > 0) {
       const imgWrap = document.createElement("div");
       imgWrap.style.display = "flex";
@@ -705,7 +709,6 @@ function renderNotes(subject) {
         img.style.borderRadius = "8px";
         img.style.cursor = "pointer";
         
-        // Clicar para ampliar a imagem
         img.addEventListener("click", () => {
           if (el.lightboxBackdrop && el.lightboxImg) {
             el.lightboxImg.src = imgSrc;
@@ -718,7 +721,6 @@ function renderNotes(subject) {
       card.appendChild(imgWrap);
     }
 
-    // Botão de deletar a anotação
     const delBtn = document.createElement("button");
     delBtn.textContent = "Apagar anotação";
     delBtn.className = "btn-ghost";
@@ -737,9 +739,54 @@ function renderNotes(subject) {
   });
 }
 
-// Fechar a imagem ampliada (Lightbox)
 if (el.lightboxClose) {
   el.lightboxClose.addEventListener("click", () => {
     if (el.lightboxBackdrop) el.lightboxBackdrop.hidden = true;
+  });
+}
+
+/* =========================================================
+   INTERAÇÃO: PESQUISAR DISCIPLINA
+========================================================= */
+if (el.searchSubject) {
+  el.searchSubject.addEventListener("input", () => {
+    renderTabs(); 
+  });
+}
+
+/* =========================================================
+   INTERAÇÃO: EDITAR NOME DA DISCIPLINA
+========================================================= */
+if (el.btnEditSubject) {
+  el.btnEditSubject.addEventListener("click", () => {
+    const subject = getActiveSubject();
+    if (!subject) return;
+
+    // Abre uma janelinha perguntando o novo nome, já mostrando o nome atual
+    const novoNome = prompt("Digite o novo nome para a disciplina:", subject.nome);
+    
+    // Se o usuário digitou algo válido e não clicou em "Cancelar"
+    if (novoNome !== null && novoNome.trim() !== "") {
+      subject.nome = novoNome.trim(); // Atualiza o nome
+      saveState(); // Salva na nuvem
+      renderAll(); // Atualiza a tela
+    }
+  });
+}
+
+/* =========================================================
+   INTERAÇÃO: EXCLUIR DISCIPLINA INTEIRA
+========================================================= */
+if (el.btnDeleteSubject) {
+  el.btnDeleteSubject.addEventListener("click", () => {
+    const subject = getActiveSubject();
+    if (!subject) return;
+
+    if(confirm(`Tem certeza que deseja EXCLUIR a disciplina "${subject.nome}" e todo o seu conteúdo (questões, anotações e fotos)? Essa ação não pode ser desfeita.`)) {
+      state.disciplinas = state.disciplinas.filter(d => d.id !== subject.id);
+      state.activeSubjectId = null; 
+      saveState();
+      renderAll();
+    }
   });
 }

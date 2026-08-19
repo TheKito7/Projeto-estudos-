@@ -622,4 +622,41 @@ input[type=text]:focus, textarea:focus{
 button:focus-visible, input:focus-visible, textarea:focus-visible{
   outline:2px solid var(--chalk);
   outline-offset:2px;
+
+  
+  /* Garante que a área que engloba as abas tenha rolagem, mas sem atrapalhar a largura */
+#tabList {
+  width: 100%;
+  overflow-x: hidden; /* Esconde se algo vazar pros lados */
+  overflow-y: auto;   /* Permite rolar para baixo se tiver muitas matérias */
+}
+
+/* Força a aba ativa a encostar na borda direita e não deixar buracos */
+.tab {
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Esconde a barra de rolagem no Chrome/Edge/Safari */
+#tabList::-webkit-scrollbar {
+  display: none;
+}
+
+/* Remove qualquer espaço na direita do container da lista */
+#tabList {
+  padding-right: 0 !important;
+  width: 100%;
+}
+
+/* Força a aba a ser reta na direita e arredondada só na esquerda */
+.tab {
+  border-radius: 20px 0 0 20px !important; 
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Garante que a aba ativa passe um pouquinho por cima da linha para emendar perfeito */
+.tab.is-active {
+  background-color: #fcf9f2 !important; /* Cor exata do seu fundo principal */
+  margin-right: -1px !important; 
+  border-right: none !important;
 }
