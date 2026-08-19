@@ -53,6 +53,12 @@ const el = {
   noteTexto: document.getElementById("noteTexto"),
   noteList: document.getElementById("noteList"),
   notesEmptyHint: document.getElementById("notesEmptyHint"),
+  noteImagesInput: document.getElementById("noteImagesInput"),
+  imagePreviewList: document.getElementById("imagePreviewList"),
+
+  lightboxBackdrop: document.getElementById("lightboxBackdrop"),
+  lightboxImg: document.getElementById("lightboxImg"),
+  lightboxClose: document.getElementById("lightboxClose"),
 
   questionForm: document.getElementById("questionForm"),
   tipoQuestaoSeg: document.getElementById("tipoQuestaoSeg"),
@@ -241,8 +247,20 @@ function renderNotes(subject){
       <button class="note-del">excluir</button>
       <h4>${escapeHtml(n.titulo)}</h4>
       <span class="note-date">${date}</span>
-      <p>${escapeHtml(n.texto)}</p>
+      ${n.texto ? `<p>${escapeHtml(n.texto)}</p>` : ""}
     `;
+    if(n.imagens && n.imagens.length){
+      const grid = document.createElement("div");
+      grid.className = "note-images";
+      n.imagens.forEach(src => {
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = `Imagem de ${n.titulo}`;
+        img.addEventListener("click", () => openLightbox(src));
+        grid.appendChild(img);
+      });
+      card.appendChild(grid);
+    }
     card.querySelector(".note-del").addEventListener("click", () => {
       subject.conteudos = subject.conteudos.filter(x => x.id !== n.id);
       saveState();
@@ -337,6 +355,89 @@ el.questionForm.addEventListener("submit", (e) => {
 });
 
 /* =========================================================
+   IMAGENS: seleção, redimensionamento e preview
+========================================================= */
+let pendingImages = []; // { id, dataUrl }
+const MAX_IMG_WIDTH = 1400;
+const JPEG_QUALITY = 0.82;
+
+function resizeImageFile(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+      img.onload = () => {
+        const scale = Math.min(1, MAX_IMG_WIDTH / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderImagePreviews(){
+  el.imagePreviewList.innerHTML = "";
+  pendingImages.forEach(img => {
+    const wrap = document.createElement("div");
+    wrap.className = "image-preview";
+    wrap.innerHTML = `
+      <img src="${img.dataUrl}" alt="Prévia da imagem">
+      <button type="button" class="img-remove" title="Remover">×</button>
+    `;
+    wrap.querySelector(".img-remove").addEventListener("click", () => {
+      pendingImages = pendingImages.filter(i => i.id !== img.id);
+      renderImagePreviews();
+    });
+    el.imagePreviewList.appendChild(wrap);
+  });
+}
+
+el.noteImagesInput.addEventListener("change", async (e) => {
+  const files = [...e.target.files];
+  el.noteImagesInput.value = ""; // permite selecionar o mesmo arquivo de novo depois
+
+  for(const file of files){
+    if(!file.type.startsWith("image/")) continue;
+    const placeholderId = uid();
+    try{
+      const dataUrl = await resizeImageFile(file);
+      pendingImages.push({ id: placeholderId, dataUrl });
+      renderImagePreviews();
+    }catch(err){
+      console.warn("Falha ao processar imagem:", err);
+    }
+  }
+});
+
+/* =========================================================
+   LIGHTBOX: ver imagem ampliada
+========================================================= */
+function openLightbox(src){
+  el.lightboxImg.src = src;
+  el.lightboxBackdrop.hidden = false;
+}
+function closeLightbox(){
+  el.lightboxBackdrop.hidden = true;
+  el.lightboxImg.src = "";
+}
+el.lightboxClose.addEventListener("click", closeLightbox);
+el.lightboxBackdrop.addEventListener("click", (e) => {
+  if(e.target === el.lightboxBackdrop) closeLightbox();
+});
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape" && !el.lightboxBackdrop.hidden) closeLightbox();
+});
+
+/* =========================================================
    FORM: nova anotação
 ========================================================= */
 el.noteForm.addEventListener("submit", (e) => {
@@ -345,12 +446,31 @@ el.noteForm.addEventListener("submit", (e) => {
   if(!subject) return;
   const titulo = el.noteTitulo.value.trim();
   const texto = el.noteTexto.value.trim();
-  if(!titulo || !texto) return;
+  if(!titulo || (!texto && pendingImages.length === 0)) return;
 
-  subject.conteudos.push({ id: uid(), titulo, texto, data: Date.now() });
-  saveState();
-  el.noteForm.reset();
-  renderAll();
+  subject.conteudos.push({
+    id: uid(),
+    titulo,
+    texto,
+    data: Date.now(),
+    imagens: pendingImages.map(i => i.dataUrl)
+  });
+
+  let salvou = true;
+  try{
+    saveState();
+  }catch(err){
+    salvou = false;
+    subject.conteudos.pop();
+    alert("Não foi possível salvar: o armazenamento do navegador está cheio. Tente usar imagens menores ou remover anotações antigas com muitas imagens.");
+  }
+
+  if(salvou){
+    el.noteForm.reset();
+    pendingImages = [];
+    renderImagePreviews();
+    renderAll();
+  }
 });
 
 /* =========================================================

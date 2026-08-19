@@ -2,13 +2,13 @@
    TOKENS
 ========================================================= */
 :root{
-  --ink:        #000000;   /* chalkboard */
-  --ink-soft:   #919693;
+  --ink:        #223028;   /* chalkboard */
+  --ink-soft:   #2c3d33;
   --paper:      #FBF7EE;
   --paper-line: #E4DCC7;
   --paper-margin: #E7A79A;
   --text:       #23261F;
-  --muted:      #272924;
+  --muted:      #6F7566;
   --chalk:      #E9C25E;   /* accent yellow */
   --chalk-soft: #F3DFA1;
   --correct:    #4F9A6E;
@@ -381,6 +381,110 @@ input[type=text]:focus, textarea:focus{
 }
 .note-del:hover{ color:var(--wrong); }
 
+/* imagens dentro do card de anotação */
+.note-images{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap:8px;
+  margin-top:12px;
+}
+.note-images img{
+  width:100%;
+  height:100px;
+  object-fit:cover;
+  border-radius:var(--radius);
+  border:1px solid var(--paper-line);
+  cursor:zoom-in;
+  display:block;
+  transition: filter .12s ease;
+}
+.note-images img:hover{ filter:brightness(.92); }
+
+/* =========================================================
+   UPLOAD DE IMAGENS (formulário de anotação)
+========================================================= */
+.image-field{ display:flex; flex-direction:column; gap:10px; }
+.file-drop{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:1px dashed var(--paper-line);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  cursor:pointer;
+  font-size:13.5px;
+  color:var(--muted);
+  background:#fdfcf9;
+  transition: border-color .15s ease, color .15s ease;
+}
+.file-drop:hover{ border-color:var(--chalk); color:var(--text); }
+.file-drop-icon{
+  width:20px; height:20px; border-radius:50%;
+  background:var(--ink); color:var(--chalk);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:700; flex:none;
+}
+
+.image-preview-list{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap:8px;
+}
+.image-preview{
+  position:relative;
+  border-radius:var(--radius);
+  overflow:hidden;
+  border:1px solid var(--paper-line);
+}
+.image-preview img{ width:100%; height:76px; object-fit:cover; display:block; }
+.image-preview .img-remove{
+  position:absolute; top:4px; right:4px;
+  width:20px; height:20px; border-radius:50%;
+  background:rgba(35,38,31,.75);
+  color:#fff; border:none;
+  font-size:13px; line-height:1;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.image-preview .img-remove:hover{ background:var(--wrong); }
+.image-preview .img-loading{
+  position:absolute; inset:0;
+  background:rgba(251,247,238,.85);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:10px; color:var(--muted);
+}
+
+/* =========================================================
+   LIGHTBOX
+========================================================= */
+.lightbox-backdrop{
+  position:fixed; inset:0;
+  background:rgba(15,18,13,.9);
+  display:flex; align-items:center; justify-content:center;
+  z-index:80;
+  padding:40px 20px;
+}
+.lightbox-backdrop[hidden]{ display:none; }
+.lightbox-backdrop img{
+  max-width:100%;
+  max-height:100%;
+  border-radius:4px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.lightbox-close{
+  position:absolute;
+  top:18px; right:24px;
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.25);
+  color:#fff;
+  width:38px; height:38px;
+  border-radius:50%;
+  font-size:20px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.lightbox-close:hover{ background:rgba(255,255,255,.2); }
+
 /* =========================================================
    QUESTION FORM (cadastrar)
 ========================================================= */
@@ -489,6 +593,10 @@ input[type=text]:focus, textarea:focus{
   .note-form .btn-primary{ width:auto; }
 
   .modal{ max-width:none; }
+
+  .note-images{ grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .note-images img{ height:84px; }
+  .lightbox-close{ top:10px; right:10px; }
 }
 
 @media (max-width: 420px){

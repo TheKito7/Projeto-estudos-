@@ -78,7 +78,17 @@
       <div class="panel" id="panel-conteudo" hidden>
         <form class="note-form" id="noteForm">
           <input type="text" id="noteTitulo" placeholder="Título da anotação" required>
-          <textarea id="noteTexto" rows="4" placeholder="Escreva o conteúdo, resumo ou anotação de aula..." required></textarea>
+          <textarea id="noteTexto" rows="4" placeholder="Escreva o conteúdo, resumo ou anotação de aula..."></textarea>
+
+          <div class="image-field">
+            <label class="file-drop" for="noteImagesInput">
+              <span class="file-drop-icon">+</span>
+              <span>Adicionar imagens (mapas mentais, fotos de anotações...)</span>
+            </label>
+            <input type="file" id="noteImagesInput" accept="image/*" multiple hidden>
+            <div class="image-preview-list" id="imagePreviewList"></div>
+          </div>
+
           <button type="submit" class="btn-primary small">Salvar anotação</button>
         </form>
         <div class="note-list" id="noteList"><!-- notas injetadas --></div>
@@ -143,6 +153,12 @@
       </div>
     </form>
   </div>
+</div>
+
+<!-- Lightbox: visualização ampliada de imagem -->
+<div class="lightbox-backdrop" id="lightboxBackdrop" hidden>
+  <button class="lightbox-close" id="lightboxClose" aria-label="Fechar imagem">×</button>
+  <img id="lightboxImg" src="" alt="Imagem ampliada da anotação">
 </div>
 
 <script src="script.js"></script>
