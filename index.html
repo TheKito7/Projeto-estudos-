@@ -19,12 +19,12 @@
       <h1 class="spine-title">Caderno<br>de Estudos</h1>
     </div>
 
-    <!-- 1. CAIXA DE PESQUISA -->
+    <!-- CAIXA DE PESQUISA -->
     <div style="padding: 15px 15px 5px 15px;">
       <input type="text" id="searchSubject" placeholder="Pesquisar disciplina..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; background: transparent; color: inherit;">
     </div>
 
-    <!-- 2. LISTA DE ABAS (Agora usando apenas o NAV original) -->
+    <!-- LISTA DE ABAS -->
     <nav class="tab-list" id="tabList"><!-- tabs injected via JS --></nav>
 
     <button class="btn-new-subject" id="btnNewSubject">
@@ -54,15 +54,14 @@
           <h2 id="subjectName">—</h2>
         </div>
         <div class="sheet-header-actions">
+          <!-- CRONÔMETRO -->
+          <button class="stat" id="btnTimer" title="Clique para iniciar/pausar. Duplo clique para zerar." style="cursor: pointer; background: transparent; border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; font-variant-numeric: tabular-nums;">
+            ⏱ 00:00:00
+          </button>
+          
           <span class="stat" id="statQuestoes">0 questões</span>
           <span class="stat" id="statAcerto">— % de acerto</span>
-          <!-- Botão de editar que acabamos de adicionar -->
           <button class="icon-btn" id="btnEditSubject" title="Editar nome da disciplina">editar</button>
-          <button class="icon-btn danger" id="btnDeleteSubject" title="Excluir disciplina">excluir</button>
-        </div>
-        <div class="sheet-header-actions">
-          <span class="stat" id="statQuestoes">0 questões</span>
-          <span class="stat" id="statAcerto">— % de acerto</span>
           <button class="icon-btn danger" id="btnDeleteSubject" title="Excluir disciplina">excluir</button>
         </div>
       </header>

@@ -24,10 +24,8 @@ const COLOR_OPTIONS = ["#E9C25E","#4F9A6E","#C85A42","#5B84B1","#8C6FB0","#3D9A9
 
 function uid(){ return Math.random().toString(36).slice(2, 10); }
 
-// Estrutura de estado inicial padrão
 let state = { disciplinas: [], activeSubjectId: null, activeTab: "questoes", respostas: {} };
 
-// Salvar dados no Firestore
 async function saveState() {
   try {
     await setDoc(doc(db, "usuarios", "dados_estudos"), state);
@@ -37,7 +35,6 @@ async function saveState() {
   }
 }
 
-// Carregar dados do Firestore
 async function loadStateFromFirebase() {
   try {
     const docRef = doc(db, "usuarios", "dados_estudos");
@@ -55,14 +52,12 @@ async function loadStateFromFirebase() {
   renderAll();
 }
 
-// Chama o carregamento inicial assim que o site abrir
 loadStateFromFirebase();
 
 function getActiveSubject(){
   return state.disciplinas.find(d => d.id === state.activeSubjectId) || null;
 }
 
-// Auxiliar para evitar problemas de segurança com strings injetadas no HTML
 function escapeHtml(text) {
   if (!text) return "";
   return text
@@ -85,8 +80,9 @@ const el = {
   subjectEyebrow: document.getElementById("subjectEyebrow"),
   statQuestoes: document.getElementById("statQuestoes"),
   statAcerto: document.getElementById("statAcerto"),
+  btnTimer: document.getElementById("btnTimer"),
   btnDeleteSubject: document.getElementById("btnDeleteSubject"),
-  btnEditSubject: document.getElementById("btnEditSubject"), // <-- NOVO BOTÃO DE EDITAR AQUI
+  btnEditSubject: document.getElementById("btnEditSubject"),
 
   stripTabs: document.querySelectorAll(".strip-tab"),
   panelQuestoes: document.getElementById("panel-questoes"),
@@ -136,16 +132,14 @@ let novaRespostaCE = "certo";
 let corSelecionada = COLOR_OPTIONS[0];
 
 /* =========================================================
-   RENDER: SIDEBAR (abas das disciplinas)
+   RENDER: SIDEBAR
 ========================================================= */
 function renderTabs(){
   if (!el.tabList) return;
   el.tabList.innerHTML = "";
   
-  // Lê o que foi digitado na barra de pesquisa (em letras minúsculas)
   const termoPesquisa = el.searchSubject ? el.searchSubject.value.toLowerCase() : "";
 
-  // Filtra as disciplinas que contêm o texto pesquisado
   const disciplinasFiltradas = state.disciplinas.filter(d => 
     d.nome.toLowerCase().includes(termoPesquisa)
   );
@@ -187,7 +181,6 @@ function renderAll(){
     el.statQuestoes.textContent = `${qCount} questão${qCount===1?"":"es"}`;
   }
 
-  // CÁLCULO DE ACERTOS CORRIGIDO
   if (el.statAcerto && subject.questoes) {
     const respondidas = subject.questoes.filter(q => state.respostas[q.id] !== undefined);
     const corretas = respondidas.filter(q => isRespostaCorreta(q, state.respostas[q.id]));
@@ -206,7 +199,7 @@ function renderAll(){
 }
 
 /* =========================================================
-   QUESTÕES: LÓGICA DE RENDERIZAÇÃO E RESPOSTAS
+   QUESTÕES: RENDERIZAÇÃO
 ========================================================= */
 function renderQuestions(subject){
   if (!el.questionList) return;
@@ -229,7 +222,6 @@ function renderQuestions(subject){
     card.className = "q-card";
     card.style.setProperty("--card-color", subject.cor);
 
-    // 1. CABEÇALHO
     const head = document.createElement("div");
     head.className = "q-head";
     head.innerHTML = `<span class="q-tag">QUESTÃO ${idx+1} · ${q.tipo === "certo_errado" ? "CERTO/ERRADO" : "OBJETIVA"}</span>`;
@@ -246,13 +238,11 @@ function renderQuestions(subject){
     head.appendChild(del);
     card.appendChild(head);
     
-    // 2. ENUNCIADO
     const enun = document.createElement("p");
     enun.className = "q-enunciado";
     enun.textContent = q.enunciado;
     card.appendChild(enun);
 
-    // 3. ALTERNATIVAS PARA RESPONDER
     const optionsWrap = document.createElement("div");
     optionsWrap.style.display = "flex";
     optionsWrap.style.flexDirection = "column";
@@ -311,7 +301,6 @@ function renderQuestions(subject){
     
     card.appendChild(optionsWrap);
 
-    // 4. EXPLICAÇÃO
     if (jaRespondida && q.explicacao) {
       const exp = document.createElement("div");
       exp.style.marginTop = "16px";
@@ -327,26 +316,17 @@ function renderQuestions(subject){
   });
 }
 
-/* =========================================================
-   FUNÇÕES AUXILIARES
-========================================================= */
 function responderQuestao(idQuestao, alternativaEscolhida) {
-  if (!state.respostas) {
-    state.respostas = {};
-  }
-  
+  if (!state.respostas) state.respostas = {};
   state.respostas[idQuestao] = alternativaEscolhida;
-  
-  if (typeof saveState === "function") saveState();
-  if (typeof renderAll === "function") renderAll(); 
+  saveState();
+  renderAll(); 
 }
 
 function isRespostaCorreta(questao, respostaUsuario) {
-  if (questao.tipo === "certo_errado") {
-    return questao.correta === respostaUsuario;
-  } else {
-    return questao.corretaId === respostaUsuario;
-  }
+  return questao.tipo === "certo_errado" 
+    ? questao.correta === respostaUsuario 
+    : questao.corretaId === respostaUsuario;
 }
 
 /* =========================================================
@@ -374,9 +354,6 @@ if (el.subjectForm) {
   });
 }
 
-/* =========================================================
-   RENDER: SELETOR DE CORES
-========================================================= */
 function renderColorPicker() {
   if (!el.colorPicker) return;
   el.colorPicker.innerHTML = ""; 
@@ -387,9 +364,7 @@ function renderColorPicker() {
     btnCor.className = "color-swatch"; 
     btnCor.style.backgroundColor = cor;
     
-    if (cor === corSelecionada) {
-      btnCor.classList.add("is-selected"); 
-    }
+    if (cor === corSelecionada) btnCor.classList.add("is-selected"); 
     
     btnCor.addEventListener("click", () => {
       corSelecionada = cor;
@@ -403,7 +378,7 @@ function renderColorPicker() {
 renderColorPicker();
 
 /* =========================================================
-   INTERAÇÃO: ABAS INTERNAS
+   INTERAÇÕES DA INTERFACE
 ========================================================= */
 if (el.stripTabs) {
   el.stripTabs.forEach(tab => {
@@ -418,12 +393,8 @@ if (el.stripTabs) {
   });
 }
 
-/* =========================================================
-   INTERAÇÃO: SELETOR DE TIPO DE QUESTÃO (Cadastrar)
-========================================================= */
 if (el.tipoQuestaoSeg) {
   const botoesTipo = el.tipoQuestaoSeg.querySelectorAll("button");
-  
   botoesTipo.forEach(btn => {
     btn.addEventListener("click", () => {
       const texto = btn.textContent.toLowerCase();
@@ -433,24 +404,15 @@ if (el.tipoQuestaoSeg) {
       btn.classList.add("is-active");
       
       if (el.alternativasWrap && el.certoErradoWrap) {
-        if (novoTipoQuestao === "certo_errado") {
-          el.alternativasWrap.hidden = true;
-          el.certoErradoWrap.hidden = false;
-        } else {
-          el.alternativasWrap.hidden = false;
-          el.certoErradoWrap.hidden = true;
-        }
+        el.alternativasWrap.hidden = novoTipoQuestao === "certo_errado";
+        el.certoErradoWrap.hidden = novoTipoQuestao !== "certo_errado";
       }
     });
   });
 }
 
-/* =========================================================
-   INTERAÇÃO: ESCOLHER A RESPOSTA "CERTO" OU "ERRADO"
-========================================================= */
 if (el.ceSeg) {
   const botoesRespCE = el.ceSeg.querySelectorAll("button");
-  
   botoesRespCE.forEach(btn => {
     btn.addEventListener("click", () => {
       const texto = btn.textContent.toLowerCase();
@@ -462,23 +424,14 @@ if (el.ceSeg) {
   });
 }
 
-/* =========================================================
-   INTERAÇÃO: FILTROS DE QUESTÕES
-========================================================= */
 if (el.filtroTipo) {
   const botoesFiltro = el.filtroTipo.querySelectorAll("button");
-  
   botoesFiltro.forEach(btn => {
     btn.addEventListener("click", () => {
       const texto = btn.textContent.toLowerCase();
-      
-      if (texto.includes("todas")) {
-        filtroAtivo = "todas";
-      } else if (texto.includes("objetiva")) {
-        filtroAtivo = "objetiva"; 
-      } else if (texto.includes("certo")) {
-        filtroAtivo = "certo_errado";
-      }
+      if (texto.includes("todas")) filtroAtivo = "todas";
+      else if (texto.includes("objetiva")) filtroAtivo = "objetiva"; 
+      else if (texto.includes("certo")) filtroAtivo = "certo_errado";
       
       botoesFiltro.forEach(b => b.classList.remove("is-active"));
       btn.classList.add("is-active");
@@ -487,13 +440,9 @@ if (el.filtroTipo) {
   });
 }
 
-/* =========================================================
-   INTERAÇÃO: ADICIONAR ALTERNATIVAS
-========================================================= */
 if (el.btnAddAlt && el.altList) {
   el.btnAddAlt.addEventListener("click", () => {
     const altId = uid(); 
-    
     const row = document.createElement("div");
     row.className = "alt-row"; 
     row.style.display = "flex";
@@ -506,21 +455,17 @@ if (el.btnAddAlt && el.altList) {
       <button type="button" class="icon-btn danger" title="Remover alternativa">x</button>
     `;
     
-    row.querySelector('.danger').addEventListener('click', () => {
-      row.remove();
-    });
-    
+    row.querySelector('.danger').addEventListener('click', () => row.remove());
     el.altList.appendChild(row);
   });
 }
 
 /* =========================================================
-   CADASTRO: SALVAR NOVA QUESTÃO
+   CADASTRO: QUESTÃO
 ========================================================= */
 if (el.questionForm) {
   el.questionForm.addEventListener("submit", (e) => {
     e.preventDefault(); 
-
     const subject = getActiveSubject();
     if (!subject) return;
 
@@ -566,7 +511,6 @@ if (el.questionForm) {
     subject.questoes.push(novaQuestao);
     
     saveState();
-    
     el.questionForm.reset();
     if (el.altList) el.altList.innerHTML = ""; 
     state.activeTab = "questoes";
@@ -574,17 +518,12 @@ if (el.questionForm) {
   });
 }
 
-/* =========================================================
-   BÔNUS: REINICIAR RESPOSTAS
-========================================================= */
 if (el.btnResetQuiz) {
   el.btnResetQuiz.addEventListener("click", () => {
     if(confirm("Tem certeza que deseja apagar todas as suas respostas desta disciplina?")) {
        const subject = getActiveSubject();
        if(subject && subject.questoes) {
-         subject.questoes.forEach(q => {
-           delete state.respostas[q.id];
-         });
+         subject.questoes.forEach(q => delete state.respostas[q.id]);
          saveState();
          renderAll();
        }
@@ -593,14 +532,13 @@ if (el.btnResetQuiz) {
 }
 
 /* =========================================================
-   CADASTRO E RENDER: ANOTAÇÕES E IMAGENS
+   ANOTAÇÕES E IMAGENS
 ========================================================= */
 let pendingImages = []; 
 
 if (el.noteImagesInput) {
   el.noteImagesInput.addEventListener("change", (e) => {
     const files = Array.from(e.target.files);
-    
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -638,7 +576,6 @@ function renderImagePreviews() {
 if (el.noteForm) {
   el.noteForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    
     const subject = getActiveSubject();
     if (!subject) return;
 
@@ -647,18 +584,12 @@ if (el.noteForm) {
 
     if (!titulo && !texto && pendingImages.length === 0) return; 
 
-    const novaNota = {
-      id: uid(),
-      titulo: titulo,
-      texto: texto,
-      imagens: [...pendingImages]
-    };
+    const novaNota = { id: uid(), titulo, texto, imagens: [...pendingImages] };
 
     if (!subject.notas) subject.notas = [];
     subject.notas.push(novaNota);
     
     saveState();
-    
     el.noteForm.reset();
     pendingImages = [];
     renderImagePreviews();
@@ -746,47 +677,79 @@ if (el.lightboxClose) {
 }
 
 /* =========================================================
-   INTERAÇÃO: PESQUISAR DISCIPLINA
+   PESQUISA E EDIÇÃO DE DISCIPLINAS
 ========================================================= */
 if (el.searchSubject) {
-  el.searchSubject.addEventListener("input", () => {
-    renderTabs(); 
-  });
+  el.searchSubject.addEventListener("input", () => renderTabs());
 }
 
-/* =========================================================
-   INTERAÇÃO: EDITAR NOME DA DISCIPLINA
-========================================================= */
 if (el.btnEditSubject) {
   el.btnEditSubject.addEventListener("click", () => {
     const subject = getActiveSubject();
     if (!subject) return;
 
-    // Abre uma janelinha perguntando o novo nome, já mostrando o nome atual
     const novoNome = prompt("Digite o novo nome para a disciplina:", subject.nome);
-    
-    // Se o usuário digitou algo válido e não clicou em "Cancelar"
     if (novoNome !== null && novoNome.trim() !== "") {
-      subject.nome = novoNome.trim(); // Atualiza o nome
-      saveState(); // Salva na nuvem
-      renderAll(); // Atualiza a tela
+      subject.nome = novoNome.trim();
+      saveState();
+      renderAll();
     }
   });
 }
 
-/* =========================================================
-   INTERAÇÃO: EXCLUIR DISCIPLINA INTEIRA
-========================================================= */
 if (el.btnDeleteSubject) {
   el.btnDeleteSubject.addEventListener("click", () => {
     const subject = getActiveSubject();
     if (!subject) return;
 
-    if(confirm(`Tem certeza que deseja EXCLUIR a disciplina "${subject.nome}" e todo o seu conteúdo (questões, anotações e fotos)? Essa ação não pode ser desfeita.`)) {
+    if(confirm(`Tem certeza que deseja EXCLUIR a disciplina "${subject.nome}" e todo o seu conteúdo?`)) {
       state.disciplinas = state.disciplinas.filter(d => d.id !== subject.id);
       state.activeSubjectId = null; 
       saveState();
       renderAll();
     }
+  });
+}
+
+/* =========================================================
+   CRONÔMETRO DE ESTUDOS
+========================================================= */
+let timerInterval = null;
+let timerSeconds = 0;
+let isTimerRunning = false;
+
+function formatTime(totalSeconds) {
+  const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+  const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+  const s = (totalSeconds % 60).toString().padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+if (el.btnTimer) {
+  el.btnTimer.addEventListener("click", () => {
+    if (isTimerRunning) {
+      clearInterval(timerInterval);
+      isTimerRunning = false;
+      el.btnTimer.style.color = "#ff4d4d";
+      el.btnTimer.style.borderColor = "#ff4d4d";
+    } else {
+      isTimerRunning = true;
+      el.btnTimer.style.color = "#38b259";
+      el.btnTimer.style.borderColor = "#38b259";
+      
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        el.btnTimer.innerHTML = `⏱ ${formatTime(timerSeconds)}`;
+      }, 1000);
+    }
+  });
+  
+  el.btnTimer.addEventListener("dblclick", () => {
+    clearInterval(timerInterval);
+    isTimerRunning = false;
+    timerSeconds = 0;
+    el.btnTimer.innerHTML = `⏱ 00:00:00`;
+    el.btnTimer.style.color = "inherit";
+    el.btnTimer.style.borderColor = "#ccc";
   });
 }
