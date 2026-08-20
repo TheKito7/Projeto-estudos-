@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Caderno de Estudos</title>
 
-
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📓</text></svg>">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -103,8 +102,20 @@
         </div>
 
         <form class="note-form" id="noteForm">
-          <input type="text" id="noteTitulo" placeholder="Título da anotação" required>
-          <textarea id="noteTexto" rows="4" placeholder="Escreva o conteúdo, resumo ou anotação de aula..."></textarea>
+          <input type="text" id="noteTitulo" placeholder="Título da anotação" style="margin-bottom: 12px;" required>
+          
+          <!-- ========================================== -->
+          <!-- NOVA BARRA DE FERRAMENTAS DO EDITOR        -->
+          <!-- ========================================== -->
+          <div class="editor-toolbar" style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <button type="button" onclick="document.execCommand('bold', false, null)" style="padding: 6px 12px; font-weight: bold; cursor: pointer; border: 1px solid #ccc; background: transparent; border-radius: 4px; color: inherit;">B</button>
+            <button type="button" onclick="document.execCommand('italic', false, null)" style="padding: 6px 12px; font-style: italic; cursor: pointer; border: 1px solid #ccc; background: transparent; border-radius: 4px; color: inherit;">I</button>
+            <button type="button" onclick="document.execCommand('underline', false, null)" style="padding: 6px 12px; text-decoration: underline; cursor: pointer; border: 1px solid #ccc; background: transparent; border-radius: 4px; color: inherit;">U</button>
+          </div>
+          
+          <!-- ÁREA DE TEXTO EDITÁVEL SUBSTITUINDO O TEXTAREA -->
+          <div id="noteTexto" contenteditable="true" style="min-height: 120px; border: 1px solid #ccc; padding: 12px; border-radius: 4px; background: transparent; color: inherit; overflow-y: auto; outline: none; margin-bottom: 16px;"></div>
+          <!-- ========================================== -->
 
           <div class="image-field">
             <label class="file-drop" for="noteImagesInput">

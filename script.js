@@ -34,29 +34,24 @@ const COLOR_OPTIONS = ["#E9C25E","#4F9A6E","#C85A42","#5B84B1","#8C6FB0","#3D9A9
 function uid(){ return Math.random().toString(36).slice(2, 10); }
 
 let state = { disciplinas: [], activeSubjectId: null, activeTab: "questoes", respostas: {} };
+let noteEmEdicaoId = null; // Controle de edição de anotação
 
 // Carrega todas as disciplinas e anotações de coleções separadas
 async function loadStateFromFirebase() {
   try {
-    // 1. Carrega disciplinas
     const discSnap = await getDocs(collection(db, "disciplinas"));
     const disciplinas = [];
-    discSnap.forEach(dDoc => {
-      disciplinas.push(dDoc.data());
-    });
+    discSnap.forEach(dDoc => disciplinas.push(dDoc.data()));
     state.disciplinas = disciplinas;
 
-    // Se houver disciplinas e nenhuma ativa, ativa a primeira
     if (state.disciplinas.length > 0 && !state.activeSubjectId) {
       state.activeSubjectId = state.disciplinas[0].id;
     }
 
-    // 2. Carrega anotações do banco
     const notesSnap = await getDocs(collection(db, "anotacoes"));
     const todasNotas = [];
     notesSnap.forEach(nDoc => todasNotas.push(nDoc.data()));
 
-    // Associa as notas às suas respectivas disciplinas
     state.disciplinas.forEach(d => {
       d.notas = todasNotas.filter(n => n.subjectId === d.id);
       if (!d.questoes) d.questoes = [];
@@ -69,7 +64,6 @@ async function loadStateFromFirebase() {
   renderAll();
 }
 
-// Salva uma disciplina específica
 async function saveSubject(subject) {
   try {
     const discData = {
@@ -84,17 +78,15 @@ async function saveSubject(subject) {
   }
 }
 
-// Salva uma anotação individual
 async function saveNote(note) {
   try {
     await setDoc(doc(db, "anotacoes", note.id), note);
   } catch (e) {
     console.error("Erro ao salvar anotação:", e);
-    alert("Erro ao salvar a anotação na nuvem. Ela pode ser grande demais.");
+    alert("Erro ao salvar a anotação na nuvem.");
   }
 }
 
-// Apaga uma anotação individual
 async function deleteNoteFromCloud(noteId) {
   try {
     await deleteDoc(doc(db, "anotacoes", noteId));
@@ -103,12 +95,10 @@ async function deleteNoteFromCloud(noteId) {
   }
 }
 
-// Apaga uma disciplina inteira e suas notas
 async function deleteSubjectFromCloud(subjectId) {
   try {
     await deleteDoc(doc(db, "disciplinas", subjectId));
     
-    // Apaga também as anotações vinculadas
     const q = query(collection(db, "anotacoes"), where("subjectId", "==", subjectId));
     const querySnapshot = await getDocs(q);
     querySnapshot.forEach(async (dDoc) => {
@@ -166,7 +156,7 @@ const el = {
 
   noteForm: document.getElementById("noteForm"),
   noteTitulo: document.getElementById("noteTitulo"),
-  noteTexto: document.getElementById("noteTexto"),
+  noteTexto: document.getElementById("noteTexto"), // Agora é uma div editável
   noteList: document.getElementById("noteList"),
   notesEmptyHint: document.getElementById("notesEmptyHint"),
   noteImagesInput: document.getElementById("noteImagesInput"),
@@ -202,7 +192,7 @@ let novaRespostaCE = "certo";
 let corSelecionada = COLOR_OPTIONS[0];
 
 /* =========================================================
-   RENDER: SIDEBAR
+   RENDERIZAÇÃO
 ========================================================= */
 function renderTabs(){
   if (!el.tabList) return;
@@ -227,9 +217,6 @@ function renderTabs(){
   });
 }
 
-/* =========================================================
-   RENDER: VIEW SWITCH
-========================================================= */
 function renderAll(){
   renderTabs();
   const subject = getActiveSubject();
@@ -267,9 +254,6 @@ function renderAll(){
   renderNotes(subject);
 }
 
-/* =========================================================
-   QUESTÕES: RENDERIZAÇÃO E PESQUISA
-========================================================= */
 function renderQuestions(subject){
   if (!el.questionList) return;
   const qList = subject.questoes || [];
@@ -405,213 +389,30 @@ function isRespostaCorreta(questao, respostaUsuario) {
     : questao.corretaId === respostaUsuario;
 }
 
-/* =========================================================
-   MODAL DE DISCIPLINAS
-========================================================= */
-if (el.btnNewSubject) el.btnNewSubject.addEventListener("click", () => el.modalBackdrop.hidden = false);
-if (el.btnNewSubjectEmpty) el.btnNewSubjectEmpty.addEventListener("click", () => el.modalBackdrop.hidden = false);
-if (el.btnCancelSubject) el.btnCancelSubject.addEventListener("click", () => el.modalBackdrop.hidden = true);
-
-if (el.subjectForm) {
-  el.subjectForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const nome = el.subjectNameInput.value.trim();
-    if (!nome) return;
-
-    const novaDisciplina = {id: uid(), nome: nome, cor: corSelecionada, questoes: [], notas: []};
-
-    state.disciplinas.push(novaDisciplina);
-    state.activeSubjectId = novaDisciplina.id;
-    el.subjectNameInput.value = "";
-    el.modalBackdrop.hidden = true;
-    
-    renderAll();
-    await saveSubject(novaDisciplina);
-  });
-}
-
 function renderColorPicker() {
   if (!el.colorPicker) return;
   el.colorPicker.innerHTML = ""; 
-  
   COLOR_OPTIONS.forEach(cor => {
     const btnCor = document.createElement("button");
     btnCor.type = "button"; 
     btnCor.className = "color-swatch"; 
     btnCor.style.backgroundColor = cor;
-    
     if (cor === corSelecionada) btnCor.classList.add("is-selected"); 
-    
     btnCor.addEventListener("click", () => {
       corSelecionada = cor;
       Array.from(el.colorPicker.children).forEach(c => c.classList.remove("is-selected"));
       btnCor.classList.add("is-selected");
     });
-    
     el.colorPicker.appendChild(btnCor);
   });
 }
 renderColorPicker();
 
 /* =========================================================
-   INTERAÇÕES DA INTERFACE
-========================================================= */
-if (el.stripTabs) {
-  el.stripTabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      const targetPanel = tab.dataset.panel;
-      if (targetPanel) {
-        state.activeTab = targetPanel;
-        renderAll(); 
-      }
-    });
-  });
-}
-
-if (el.tipoQuestaoSeg) {
-  const botoesTipo = el.tipoQuestaoSeg.querySelectorAll("button");
-  botoesTipo.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const texto = btn.textContent.toLowerCase();
-      novoTipoQuestao = texto.includes("certo") ? "certo_errado" : "objetiva";
-      
-      botoesTipo.forEach(b => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      
-      if (el.alternativasWrap && el.certoErradoWrap) {
-        el.alternativasWrap.hidden = novoTipoQuestao === "certo_errado";
-        el.certoErradoWrap.hidden = novoTipoQuestao !== "certo_errado";
-      }
-    });
-  });
-}
-
-if (el.ceSeg) {
-  const botoesRespCE = el.ceSeg.querySelectorAll("button");
-  botoesRespCE.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const texto = btn.textContent.toLowerCase();
-      novaRespostaCE = texto.includes("certo") ? "certo" : "errado";
-      
-      botoesRespCE.forEach(b => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-    });
-  });
-}
-
-if (el.filtroTipo) {
-  const botoesFiltro = el.filtroTipo.querySelectorAll("button");
-  botoesFiltro.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const texto = btn.textContent.toLowerCase();
-      if (texto.includes("todas")) filtroAtivo = "todas";
-      else if (texto.includes("objetiva")) filtroAtivo = "objetiva"; 
-      else if (texto.includes("certo")) filtroAtivo = "certo_errado";
-      
-      botoesFiltro.forEach(b => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      renderAll();
-    });
-  });
-}
-
-if (el.btnAddAlt && el.altList) {
-  el.btnAddAlt.addEventListener("click", () => {
-    const altId = uid(); 
-    const row = document.createElement("div");
-    row.className = "alt-row"; 
-    row.style.display = "flex";
-    row.style.gap = "8px";
-    row.style.marginBottom = "8px";
-    
-    row.innerHTML = `
-      <input type="radio" name="gabarito" value="${altId}" title="Marcar como correta">
-      <input type="text" placeholder="Digite a alternativa..." style="flex: 1;" required>
-      <button type="button" class="icon-btn danger" title="Remover alternativa">x</button>
-    `;
-    
-    row.querySelector('.danger').addEventListener('click', () => row.remove());
-    el.altList.appendChild(row);
-  });
-}
-
-/* =========================================================
-   CADASTRO: QUESTÃO
-========================================================= */
-if (el.questionForm) {
-  el.questionForm.addEventListener("submit", async (e) => {
-    e.preventDefault(); 
-    const subject = getActiveSubject();
-    if (!subject) return;
-
-    const enunciado = el.qEnunciado ? el.qEnunciado.value.trim() : "";
-    if (!enunciado) {
-      alert("Por favor, digite o enunciado da questão.");
-      return; 
-    }
-
-    const novaQuestao = {
-      id: uid(),
-      enunciado: enunciado,
-      tipo: novoTipoQuestao,
-      explicacao: el.qExplicacao ? el.qExplicacao.value.trim() : ""
-    };
-
-    if (novoTipoQuestao === "certo_errado") {
-      novaQuestao.correta = novaRespostaCE;
-    } else {
-      const radios = el.altList.querySelectorAll('input[type="radio"]');
-      const radioCorreto = Array.from(radios).find(r => r.checked);
-      
-      if (!radioCorreto) {
-        alert("Por favor, marque a bolinha indicando qual é a alternativa correta.");
-        return;
-      }
-      
-      novaQuestao.corretaId = radioCorreto.value;
-      novaQuestao.alternativas = [];
-      
-      const linhas = el.altList.querySelectorAll('.alt-row');
-      linhas.forEach(linha => {
-        const inputRadio = linha.querySelector('input[type="radio"]');
-        const inputText = linha.querySelector('input[type="text"]');
-        novaQuestao.alternativas.push({
-          id: inputRadio.value,
-          texto: inputText.value.trim()
-        });
-      });
-    }
-
-    if (!subject.questoes) subject.questoes = [];
-    subject.questoes.push(novaQuestao);
-    
-    el.questionForm.reset();
-    if (el.altList) el.altList.innerHTML = ""; 
-    state.activeTab = "questoes";
-    renderAll();
-    
-    await saveSubject(subject);
-  });
-}
-
-if (el.btnResetQuiz) {
-  el.btnResetQuiz.addEventListener("click", async () => {
-    if(confirm("Tem certeza que deseja apagar todas as suas respostas desta disciplina?")) {
-       const subject = getActiveSubject();
-       if(subject && subject.questoes) {
-         subject.questoes.forEach(q => delete state.respostas[q.id]);
-         renderAll();
-       }
-    }
-  });
-}
-
-/* =========================================================
-   ANOTAÇÕES COM COMPRESSÃO WEBP (SALVAS EM ANOTAÇÕES SEPARADAS)
+   COMPRESSÃO WEBP
 ========================================================= */
 let pendingBase64Images = []; 
 
-// Função que compacta e converte sem perder tamanho original!
 function compressImageToBase64(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -619,17 +420,12 @@ function compressImageToBase64(file) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        
-        // Mantém as dimensões exatas da imagem original
         const width = img.width;
         const height = img.height;
-
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
-
-        // Formato WebP com qualidade 0.7 para melhor leitura e tamanho leve
         const base64 = canvas.toDataURL("image/webp", 0.7);
         resolve(base64);
       };
@@ -675,6 +471,9 @@ function renderImagePreviews() {
   });
 }
 
+/* =========================================================
+   ANOTAÇÕES: SALVAR / EDITAR / RENDERIZAR
+========================================================= */
 if (el.noteForm) {
   el.noteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -682,28 +481,40 @@ if (el.noteForm) {
     if (!subject) return;
 
     const titulo = el.noteTitulo ? el.noteTitulo.value.trim() : "";
-    const texto = el.noteTexto ? el.noteTexto.value.trim() : "";
+    const texto = el.noteTexto ? el.noteTexto.innerHTML.trim() : ""; // Usa innerHTML
 
     if (!titulo && !texto && pendingBase64Images.length === 0) return;
 
-    // Salva a anotação como um DOCUMENTO SEPARADO no Firestore
-    const novaNota = { 
-      id: uid(), 
-      subjectId: subject.id, 
-      titulo, 
-      texto, 
-      imagens: pendingBase64Images 
-    };
+    if (noteEmEdicaoId) {
+      const notaIndex = subject.notas.findIndex(n => n.id === noteEmEdicaoId);
+      if (notaIndex !== -1) {
+        subject.notas[notaIndex].titulo = titulo;
+        subject.notas[notaIndex].texto = texto;
+        subject.notas[notaIndex].imagens = [...pendingBase64Images];
+        await saveNote(subject.notas[notaIndex]);
+      }
+      noteEmEdicaoId = null;
+      const btnSubmit = el.noteForm.querySelector('button[type="submit"]');
+      if (btnSubmit) btnSubmit.textContent = "Salvar anotação";
 
-    if (!subject.notas) subject.notas = [];
-    subject.notas.push(novaNota);
+    } else {
+      const novaNota = { 
+        id: uid(), 
+        subjectId: subject.id, 
+        titulo, 
+        texto, 
+        imagens: [...pendingBase64Images]
+      };
+      if (!subject.notas) subject.notas = [];
+      subject.notas.push(novaNota);
+      await saveNote(novaNota);
+    }
 
     el.noteForm.reset();
+    if (el.noteTexto) el.noteTexto.innerHTML = ""; 
     pendingBase64Images = [];
     renderImagePreviews();
     renderAll();
-
-    await saveNote(novaNota);
   });
 }
 
@@ -737,9 +548,10 @@ function renderNotes(subject) {
     }
 
     if (nota.texto) {
-      const p = document.createElement("p");
-      p.textContent = nota.texto;
+      const p = document.createElement("div");
+      p.innerHTML = nota.texto; 
       p.style.whiteSpace = "pre-wrap"; 
+      p.style.marginTop = "8px";
       card.appendChild(p);
     }
 
@@ -771,11 +583,43 @@ function renderNotes(subject) {
       card.appendChild(imgWrap);
     }
 
+    const actionsWrap = document.createElement("div");
+    actionsWrap.style.marginTop = "12px";
+    actionsWrap.style.display = "flex";
+    actionsWrap.style.gap = "8px";
+
+    const editBtn = document.createElement("button");
+    editBtn.textContent = "Editar anotação";
+    editBtn.className = "btn-ghost";
+    editBtn.style.color = "#007BFF";
+    editBtn.style.padding = "4px 8px";
+    editBtn.style.border = "1px solid #007BFF";
+    editBtn.style.borderRadius = "4px";
+    editBtn.style.background = "transparent";
+    editBtn.style.cursor = "pointer";
+    editBtn.addEventListener("click", () => {
+       noteEmEdicaoId = nota.id;
+       if (el.noteTitulo) el.noteTitulo.value = nota.titulo || "";
+       if (el.noteTexto) el.noteTexto.innerHTML = nota.texto || "";
+       pendingBase64Images = [...(nota.imagens || [])];
+       renderImagePreviews();
+
+       const btnSubmit = el.noteForm.querySelector('button[type="submit"]');
+       if (btnSubmit) btnSubmit.textContent = "Atualizar anotação";
+
+       window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    actionsWrap.appendChild(editBtn);
+
     const delBtn = document.createElement("button");
     delBtn.textContent = "Apagar anotação";
     delBtn.className = "btn-ghost";
-    delBtn.style.marginTop = "12px";
     delBtn.style.color = "red";
+    delBtn.style.padding = "4px 8px";
+    delBtn.style.border = "1px solid red";
+    delBtn.style.borderRadius = "4px";
+    delBtn.style.background = "transparent";
+    delBtn.style.cursor = "pointer";
     delBtn.addEventListener("click", async () => {
        if(confirm("Tem certeza que deseja apagar essa anotação?")) {
          subject.notas = subject.notas.filter(n => n.id !== nota.id);
@@ -783,9 +627,159 @@ function renderNotes(subject) {
          await deleteNoteFromCloud(nota.id);
        }
     });
-    card.appendChild(delBtn);
+    actionsWrap.appendChild(delBtn);
 
+    card.appendChild(actionsWrap);
     el.noteList.appendChild(card);
+  });
+}
+
+/* =========================================================
+   EVENTOS DA INTERFACE / OUTROS
+========================================================= */
+if (el.btnNewSubject) el.btnNewSubject.addEventListener("click", () => el.modalBackdrop.hidden = false);
+if (el.btnNewSubjectEmpty) el.btnNewSubjectEmpty.addEventListener("click", () => el.modalBackdrop.hidden = false);
+if (el.btnCancelSubject) el.btnCancelSubject.addEventListener("click", () => el.modalBackdrop.hidden = true);
+
+if (el.subjectForm) {
+  el.subjectForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nome = el.subjectNameInput.value.trim();
+    if (!nome) return;
+    const novaDisciplina = {id: uid(), nome: nome, cor: corSelecionada, questoes: [], notas: []};
+    state.disciplinas.push(novaDisciplina);
+    state.activeSubjectId = novaDisciplina.id;
+    el.subjectNameInput.value = "";
+    el.modalBackdrop.hidden = true;
+    renderAll();
+    await saveSubject(novaDisciplina);
+  });
+}
+
+if (el.stripTabs) {
+  el.stripTabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      const targetPanel = tab.dataset.panel;
+      if (targetPanel) {
+        state.activeTab = targetPanel;
+        renderAll(); 
+      }
+    });
+  });
+}
+
+if (el.tipoQuestaoSeg) {
+  const botoesTipo = el.tipoQuestaoSeg.querySelectorAll("button");
+  botoesTipo.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const texto = btn.textContent.toLowerCase();
+      novoTipoQuestao = texto.includes("certo") ? "certo_errado" : "objetiva";
+      botoesTipo.forEach(b => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      if (el.alternativasWrap && el.certoErradoWrap) {
+        el.alternativasWrap.hidden = novoTipoQuestao === "certo_errado";
+        el.certoErradoWrap.hidden = novoTipoQuestao !== "certo_errado";
+      }
+    });
+  });
+}
+
+if (el.ceSeg) {
+  const botoesRespCE = el.ceSeg.querySelectorAll("button");
+  botoesRespCE.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const texto = btn.textContent.toLowerCase();
+      novaRespostaCE = texto.includes("certo") ? "certo" : "errado";
+      botoesRespCE.forEach(b => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+    });
+  });
+}
+
+if (el.filtroTipo) {
+  const botoesFiltro = el.filtroTipo.querySelectorAll("button");
+  botoesFiltro.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const texto = btn.textContent.toLowerCase();
+      if (texto.includes("todas")) filtroAtivo = "todas";
+      else if (texto.includes("objetiva")) filtroAtivo = "objetiva"; 
+      else if (texto.includes("certo")) filtroAtivo = "certo_errado";
+      botoesFiltro.forEach(b => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      renderAll();
+    });
+  });
+}
+
+if (el.btnAddAlt && el.altList) {
+  el.btnAddAlt.addEventListener("click", () => {
+    const altId = uid(); 
+    const row = document.createElement("div");
+    row.className = "alt-row"; 
+    row.style.display = "flex";
+    row.style.gap = "8px";
+    row.style.marginBottom = "8px";
+    row.innerHTML = `
+      <input type="radio" name="gabarito" value="${altId}" title="Marcar como correta">
+      <input type="text" placeholder="Digite a alternativa..." style="flex: 1;" required>
+      <button type="button" class="icon-btn danger" title="Remover alternativa">x</button>
+    `;
+    row.querySelector('.danger').addEventListener('click', () => row.remove());
+    el.altList.appendChild(row);
+  });
+}
+
+if (el.questionForm) {
+  el.questionForm.addEventListener("submit", async (e) => {
+    e.preventDefault(); 
+    const subject = getActiveSubject();
+    if (!subject) return;
+
+    const enunciado = el.qEnunciado ? el.qEnunciado.value.trim() : "";
+    if (!enunciado) { alert("Por favor, digite o enunciado."); return; }
+
+    const novaQuestao = {
+      id: uid(),
+      enunciado: enunciado,
+      tipo: novoTipoQuestao,
+      explicacao: el.qExplicacao ? el.qExplicacao.value.trim() : ""
+    };
+
+    if (novoTipoQuestao === "certo_errado") {
+      novaQuestao.correta = novaRespostaCE;
+    } else {
+      const radios = el.altList.querySelectorAll('input[type="radio"]');
+      const radioCorreto = Array.from(radios).find(r => r.checked);
+      if (!radioCorreto) { alert("Marque qual é a correta."); return; }
+      novaQuestao.corretaId = radioCorreto.value;
+      novaQuestao.alternativas = [];
+      const linhas = el.altList.querySelectorAll('.alt-row');
+      linhas.forEach(linha => {
+        const inputRadio = linha.querySelector('input[type="radio"]');
+        const inputText = linha.querySelector('input[type="text"]');
+        novaQuestao.alternativas.push({ id: inputRadio.value, texto: inputText.value.trim() });
+      });
+    }
+
+    if (!subject.questoes) subject.questoes = [];
+    subject.questoes.push(novaQuestao);
+    el.questionForm.reset();
+    if (el.altList) el.altList.innerHTML = ""; 
+    state.activeTab = "questoes";
+    renderAll();
+    await saveSubject(subject);
+  });
+}
+
+if (el.btnResetQuiz) {
+  el.btnResetQuiz.addEventListener("click", async () => {
+    if(confirm("Deseja apagar as respostas?")) {
+       const subject = getActiveSubject();
+       if(subject && subject.questoes) {
+         subject.questoes.forEach(q => delete state.respostas[q.id]);
+         renderAll();
+       }
+    }
   });
 }
 
@@ -795,35 +789,14 @@ if (el.lightboxClose) {
   });
 }
 
-/* =========================================================
-   EVENTOS DE PESQUISA (DISCIPLINA, QUESTÃO E CONTEÚDO)
-========================================================= */
-if (el.searchSubject) {
-  el.searchSubject.addEventListener("input", () => renderTabs());
-}
+if (el.searchSubject) el.searchSubject.addEventListener("input", () => renderTabs());
+if (el.searchQuestao) el.searchQuestao.addEventListener("input", () => { const s = getActiveSubject(); if(s) renderQuestions(s); });
+if (el.searchConteudo) el.searchConteudo.addEventListener("input", () => { const s = getActiveSubject(); if(s) renderNotes(s); });
 
-if (el.searchQuestao) {
-  el.searchQuestao.addEventListener("input", () => {
-    const subject = getActiveSubject();
-    if (subject) renderQuestions(subject);
-  });
-}
-
-if (el.searchConteudo) {
-  el.searchConteudo.addEventListener("input", () => {
-    const subject = getActiveSubject();
-    if (subject) renderNotes(subject);
-  });
-}
-
-/* =========================================================
-   EDIÇÃO E EXCLUSÃO DE DISCIPLINAS
-========================================================= */
 if (el.btnEditSubject) {
   el.btnEditSubject.addEventListener("click", async () => {
     const subject = getActiveSubject();
     if (!subject) return;
-
     const novoNome = prompt("Digite o novo nome para a disciplina:", subject.nome);
     if (novoNome !== null && novoNome.trim() !== "") {
       subject.nome = novoNome.trim();
@@ -837,31 +810,25 @@ if (el.btnDeleteSubject) {
   el.btnDeleteSubject.addEventListener("click", async () => {
     const subject = getActiveSubject();
     if (!subject) return;
-
-    if(confirm(`Tem certeza que deseja EXCLUIR a disciplina "${subject.nome}" e todo o seu conteúdo?`)) {
+    if(confirm(`Tem certeza que deseja EXCLUIR a disciplina "${subject.nome}"?`)) {
       state.disciplinas = state.disciplinas.filter(d => d.id !== subject.id);
       state.activeSubjectId = state.disciplinas.length ? state.disciplinas[0].id : null; 
-      
       renderAll();
       await deleteSubjectFromCloud(subject.id);
     }
   });
 }
 
-/* =========================================================
-   CRONÔMETRO DE ESTUDOS
-========================================================= */
+// Timer
 let timerInterval = null;
 let timerSeconds = 0;
 let isTimerRunning = false;
-
 function formatTime(totalSeconds) {
   const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
   const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
   const s = (totalSeconds % 60).toString().padStart(2, '0');
   return `${h}:${m}:${s}`;
 }
-
 if (el.btnTimer) {
   el.btnTimer.addEventListener("click", () => {
     if (isTimerRunning) {
@@ -873,14 +840,12 @@ if (el.btnTimer) {
       isTimerRunning = true;
       el.btnTimer.style.color = "#38b259";
       el.btnTimer.style.borderColor = "#38b259";
-      
       timerInterval = setInterval(() => {
         timerSeconds++;
         el.btnTimer.innerHTML = `⏱ ${formatTime(timerSeconds)}`;
       }, 1000);
     }
   });
-  
   el.btnTimer.addEventListener("dblclick", () => {
     clearInterval(timerInterval);
     isTimerRunning = false;
