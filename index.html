@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Caderno de Estudos</title>
+
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📓</text></svg>">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -19,7 +23,7 @@
       <h1 class="spine-title">Caderno<br>de Estudos</h1>
     </div>
 
-    <!-- CAIXA DE PESQUISA -->
+    <!-- CAIXA DE PESQUISA DE DISCIPLINAS -->
     <div style="padding: 15px 15px 5px 15px;">
       <input type="text" id="searchSubject" placeholder="Pesquisar disciplina..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; background: transparent; color: inherit;">
     </div>
@@ -80,6 +84,10 @@
             <button class="seg-btn" data-filtro="objetiva">objetivas</button>
             <button class="seg-btn" data-filtro="certo_errado">certo/errado</button>
           </div>
+          
+          <!-- NOVO: Campo de pesquisa de questões -->
+          <input type="text" id="searchQuestao" placeholder="Pesquisar no enunciado..." style="padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; flex: 1; margin: 0 16px; background: transparent; color: inherit; max-width: 300px;">
+          
           <button class="link-btn" id="btnResetQuiz">reiniciar respostas</button>
         </div>
         <div class="question-list" id="questionList"><!-- perguntas injetadas --></div>
@@ -88,6 +96,12 @@
 
       <!-- PANEL: Conteúdo -->
       <div class="panel" id="panel-conteudo" hidden>
+        
+        <!-- NOVO: Campo de pesquisa de anotações -->
+        <div style="margin-bottom: 24px;">
+          <input type="text" id="searchConteudo" placeholder="Pesquisar nas anotações (título ou texto)..." style="width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: transparent; color: inherit;">
+        </div>
+
         <form class="note-form" id="noteForm">
           <input type="text" id="noteTitulo" placeholder="Título da anotação" required>
           <textarea id="noteTexto" rows="4" placeholder="Escreva o conteúdo, resumo ou anotação de aula..."></textarea>

@@ -1,6 +1,15 @@
 // 1. Importações do Firebase SDK via CDN
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  deleteDoc, 
+  query, 
+  where 
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // 2. Sua configuração do Firebase Web
 const firebaseConfig = {
@@ -18,7 +27,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 /* =========================================================
-   ESTADO / PERSISTÊNCIA NA NUVEM
+   ESTADO / PERSISTÊNCIA NA NUVEM (DOCUMENTOS SEPARADOS)
 ========================================================= */
 const COLOR_OPTIONS = ["#E9C25E","#4F9A6E","#C85A42","#5B84B1","#8C6FB0","#3D9A9A","#B27C3D","#6E7B4A"];
 
@@ -26,30 +35,88 @@ function uid(){ return Math.random().toString(36).slice(2, 10); }
 
 let state = { disciplinas: [], activeSubjectId: null, activeTab: "questoes", respostas: {} };
 
-async function saveState() {
-  try {
-    await setDoc(doc(db, "usuarios", "dados_estudos"), state);
-    console.log("Dados sincronizados com o Firebase!");
-  } catch (e) {
-    console.error("Erro ao salvar dados na nuvem:", e);
-  }
-}
-
+// Carrega todas as disciplinas e anotações de coleções separadas
 async function loadStateFromFirebase() {
   try {
-    const docRef = doc(db, "usuarios", "dados_estudos");
-    const docSnap = await getDoc(docRef);
+    // 1. Carrega disciplinas
+    const discSnap = await getDocs(collection(db, "disciplinas"));
+    const disciplinas = [];
+    discSnap.forEach(dDoc => {
+      disciplinas.push(dDoc.data());
+    });
+    state.disciplinas = disciplinas;
 
-    if (docSnap.exists()) {
-      state = docSnap.data();
-      console.log("Dados carregados da nuvem com sucesso!");
-    } else {
-      console.log("Nenhum dado encontrado. Iniciando banco vazio.");
+    // Se houver disciplinas e nenhuma ativa, ativa a primeira
+    if (state.disciplinas.length > 0 && !state.activeSubjectId) {
+      state.activeSubjectId = state.disciplinas[0].id;
     }
+
+    // 2. Carrega anotações do banco
+    const notesSnap = await getDocs(collection(db, "anotacoes"));
+    const todasNotas = [];
+    notesSnap.forEach(nDoc => todasNotas.push(nDoc.data()));
+
+    // Associa as notas às suas respectivas disciplinas
+    state.disciplinas.forEach(d => {
+      d.notas = todasNotas.filter(n => n.subjectId === d.id);
+      if (!d.questoes) d.questoes = [];
+    });
+
+    console.log("Dados carregados com sucesso!");
   } catch (e) {
     console.error("Erro ao carregar dados da nuvem:", e);
   }
   renderAll();
+}
+
+// Salva uma disciplina específica
+async function saveSubject(subject) {
+  try {
+    const discData = {
+      id: subject.id,
+      nome: subject.nome,
+      cor: subject.cor,
+      questoes: subject.questoes || []
+    };
+    await setDoc(doc(db, "disciplinas", subject.id), discData);
+  } catch (e) {
+    console.error("Erro ao salvar disciplina:", e);
+  }
+}
+
+// Salva uma anotação individual
+async function saveNote(note) {
+  try {
+    await setDoc(doc(db, "anotacoes", note.id), note);
+  } catch (e) {
+    console.error("Erro ao salvar anotação:", e);
+    alert("Erro ao salvar a anotação na nuvem. Ela pode ser grande demais.");
+  }
+}
+
+// Apaga uma anotação individual
+async function deleteNoteFromCloud(noteId) {
+  try {
+    await deleteDoc(doc(db, "anotacoes", noteId));
+  } catch (e) {
+    console.error("Erro ao apagar anotação:", e);
+  }
+}
+
+// Apaga uma disciplina inteira e suas notas
+async function deleteSubjectFromCloud(subjectId) {
+  try {
+    await deleteDoc(doc(db, "disciplinas", subjectId));
+    
+    // Apaga também as anotações vinculadas
+    const q = query(collection(db, "anotacoes"), where("subjectId", "==", subjectId));
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach(async (dDoc) => {
+      await deleteDoc(doc(db, "anotacoes", dDoc.id));
+    });
+  } catch (e) {
+    console.error("Erro ao excluir disciplina:", e);
+  }
 }
 
 loadStateFromFirebase();
@@ -69,10 +136,13 @@ function escapeHtml(text) {
 }
 
 /* =========================================================
-   ELEMENTOS
+   ELEMENTOS DA TELA
 ========================================================= */
 const el = {
   searchSubject: document.getElementById("searchSubject"),
+  searchQuestao: document.getElementById("searchQuestao"),
+  searchConteudo: document.getElementById("searchConteudo"),
+  
   tabList: document.getElementById("tabList"),
   viewEmpty: document.getElementById("view-empty"),
   viewSubject: document.getElementById("view-subject"),
@@ -151,7 +221,6 @@ function renderTabs(){
     btn.addEventListener("click", () => {
       state.activeSubjectId = d.id;
       state.activeTab = "questoes";
-      saveState();
       renderAll();
     });
     el.tabList.appendChild(btn);
@@ -199,12 +268,19 @@ function renderAll(){
 }
 
 /* =========================================================
-   QUESTÕES: RENDERIZAÇÃO
+   QUESTÕES: RENDERIZAÇÃO E PESQUISA
 ========================================================= */
 function renderQuestions(subject){
   if (!el.questionList) return;
   const qList = subject.questoes || [];
-  const lista = qList.filter(q => filtroAtivo === "todas" || q.tipo === filtroAtivo);
+  
+  let lista = qList.filter(q => filtroAtivo === "todas" || q.tipo === filtroAtivo);
+  const termoQuestao = el.searchQuestao ? el.searchQuestao.value.toLowerCase() : "";
+  
+  if (termoQuestao) {
+    lista = lista.filter(q => q.enunciado.toLowerCase().includes(termoQuestao));
+  }
+
   el.questionList.innerHTML = "";
   
   if (el.questoesEmptyHint) el.questoesEmptyHint.hidden = qList.length > 0;
@@ -212,7 +288,7 @@ function renderQuestions(subject){
   if(qList.length && lista.length === 0){
     const p = document.createElement("p");
     p.className = "hint-empty";
-    p.textContent = "Nenhuma questão neste filtro.";
+    p.textContent = "Nenhuma questão encontrada para esta pesquisa/filtro.";
     el.questionList.appendChild(p);
     return;
   }
@@ -224,16 +300,17 @@ function renderQuestions(subject){
 
     const head = document.createElement("div");
     head.className = "q-head";
-    head.innerHTML = `<span class="q-tag">QUESTÃO ${idx+1} · ${q.tipo === "certo_errado" ? "CERTO/ERRADO" : "OBJETIVA"}</span>`;
+    const realIdx = qList.findIndex(item => item.id === q.id) + 1;
+    head.innerHTML = `<span class="q-tag">QUESTÃO ${realIdx} · ${q.tipo === "certo_errado" ? "CERTO/ERRADO" : "OBJETIVA"}</span>`;
     
     const del = document.createElement("button");
     del.className = "q-del";
     del.textContent = "excluir";
-    del.addEventListener("click", () => {
+    del.addEventListener("click", async () => {
       subject.questoes = subject.questoes.filter(x => x.id !== q.id);
       delete state.respostas[q.id];
-      saveState();
       renderAll();
+      await saveSubject(subject);
     });
     head.appendChild(del);
     card.appendChild(head);
@@ -319,7 +396,6 @@ function renderQuestions(subject){
 function responderQuestao(idQuestao, alternativaEscolhida) {
   if (!state.respostas) state.respostas = {};
   state.respostas[idQuestao] = alternativaEscolhida;
-  saveState();
   renderAll(); 
 }
 
@@ -337,7 +413,7 @@ if (el.btnNewSubjectEmpty) el.btnNewSubjectEmpty.addEventListener("click", () =>
 if (el.btnCancelSubject) el.btnCancelSubject.addEventListener("click", () => el.modalBackdrop.hidden = true);
 
 if (el.subjectForm) {
-  el.subjectForm.addEventListener("submit", (e) => {
+  el.subjectForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const nome = el.subjectNameInput.value.trim();
     if (!nome) return;
@@ -349,8 +425,8 @@ if (el.subjectForm) {
     el.subjectNameInput.value = "";
     el.modalBackdrop.hidden = true;
     
-    saveState();
     renderAll();
+    await saveSubject(novaDisciplina);
   });
 }
 
@@ -386,7 +462,6 @@ if (el.stripTabs) {
       const targetPanel = tab.dataset.panel;
       if (targetPanel) {
         state.activeTab = targetPanel;
-        saveState(); 
         renderAll(); 
       }
     });
@@ -464,7 +539,7 @@ if (el.btnAddAlt && el.altList) {
    CADASTRO: QUESTÃO
 ========================================================= */
 if (el.questionForm) {
-  el.questionForm.addEventListener("submit", (e) => {
+  el.questionForm.addEventListener("submit", async (e) => {
     e.preventDefault(); 
     const subject = getActiveSubject();
     if (!subject) return;
@@ -510,21 +585,21 @@ if (el.questionForm) {
     if (!subject.questoes) subject.questoes = [];
     subject.questoes.push(novaQuestao);
     
-    saveState();
     el.questionForm.reset();
     if (el.altList) el.altList.innerHTML = ""; 
     state.activeTab = "questoes";
     renderAll();
+    
+    await saveSubject(subject);
   });
 }
 
 if (el.btnResetQuiz) {
-  el.btnResetQuiz.addEventListener("click", () => {
+  el.btnResetQuiz.addEventListener("click", async () => {
     if(confirm("Tem certeza que deseja apagar todas as suas respostas desta disciplina?")) {
        const subject = getActiveSubject();
        if(subject && subject.questoes) {
          subject.questoes.forEach(q => delete state.respostas[q.id]);
-         saveState();
          renderAll();
        }
     }
@@ -532,21 +607,48 @@ if (el.btnResetQuiz) {
 }
 
 /* =========================================================
-   ANOTAÇÕES E IMAGENS
+   ANOTAÇÕES COM COMPRESSÃO WEBP (SALVAS EM ANOTAÇÕES SEPARADAS)
 ========================================================= */
-let pendingImages = []; 
+let pendingBase64Images = []; 
+
+// Função que compacta e converte sem perder tamanho original!
+function compressImageToBase64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        
+        // Mantém as dimensões exatas da imagem original
+        const width = img.width;
+        const height = img.height;
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Formato WebP com qualidade 0.7 para melhor leitura e tamanho leve
+        const base64 = canvas.toDataURL("image/webp", 0.7);
+        resolve(base64);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 if (el.noteImagesInput) {
-  el.noteImagesInput.addEventListener("change", (e) => {
+  el.noteImagesInput.addEventListener("change", async (e) => {
     const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        pendingImages.push(event.target.result); 
-        renderImagePreviews();
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        const base64 = await compressImageToBase64(file);
+        pendingBase64Images.push(base64);
+      }
+    }
+    renderImagePreviews();
   });
 }
 
@@ -554,9 +656,9 @@ function renderImagePreviews() {
   if (!el.imagePreviewList) return;
   el.imagePreviewList.innerHTML = "";
   
-  pendingImages.forEach((imgSrc, index) => {
+  pendingBase64Images.forEach((src, index) => {
     const img = document.createElement("img");
-    img.src = imgSrc;
+    img.src = src;
     img.style.width = "60px";
     img.style.height = "60px";
     img.style.objectFit = "cover";
@@ -565,7 +667,7 @@ function renderImagePreviews() {
     img.title = "Clique para remover esta foto";
     
     img.addEventListener("click", () => {
-      pendingImages.splice(index, 1);
+      pendingBase64Images.splice(index, 1);
       renderImagePreviews();
     });
     
@@ -574,7 +676,7 @@ function renderImagePreviews() {
 }
 
 if (el.noteForm) {
-  el.noteForm.addEventListener("submit", (e) => {
+  el.noteForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const subject = getActiveSubject();
     if (!subject) return;
@@ -582,25 +684,42 @@ if (el.noteForm) {
     const titulo = el.noteTitulo ? el.noteTitulo.value.trim() : "";
     const texto = el.noteTexto ? el.noteTexto.value.trim() : "";
 
-    if (!titulo && !texto && pendingImages.length === 0) return; 
+    if (!titulo && !texto && pendingBase64Images.length === 0) return;
 
-    const novaNota = { id: uid(), titulo, texto, imagens: [...pendingImages] };
+    // Salva a anotação como um DOCUMENTO SEPARADO no Firestore
+    const novaNota = { 
+      id: uid(), 
+      subjectId: subject.id, 
+      titulo, 
+      texto, 
+      imagens: pendingBase64Images 
+    };
 
     if (!subject.notas) subject.notas = [];
     subject.notas.push(novaNota);
-    
-    saveState();
+
     el.noteForm.reset();
-    pendingImages = [];
+    pendingBase64Images = [];
     renderImagePreviews();
     renderAll();
+
+    await saveNote(novaNota);
   });
 }
 
 function renderNotes(subject) {
   if (!el.noteList) return;
   el.noteList.innerHTML = "";
-  const nList = subject.notas || [];
+  
+  let nList = subject.notas || [];
+  
+  const termoConteudo = el.searchConteudo ? el.searchConteudo.value.toLowerCase() : "";
+  if (termoConteudo) {
+    nList = nList.filter(n => 
+      (n.titulo && n.titulo.toLowerCase().includes(termoConteudo)) || 
+      (n.texto && n.texto.toLowerCase().includes(termoConteudo))
+    );
+  }
   
   if (el.notesEmptyHint) el.notesEmptyHint.hidden = nList.length > 0;
 
@@ -657,11 +776,11 @@ function renderNotes(subject) {
     delBtn.className = "btn-ghost";
     delBtn.style.marginTop = "12px";
     delBtn.style.color = "red";
-    delBtn.addEventListener("click", () => {
+    delBtn.addEventListener("click", async () => {
        if(confirm("Tem certeza que deseja apagar essa anotação?")) {
          subject.notas = subject.notas.filter(n => n.id !== nota.id);
-         saveState();
          renderAll();
+         await deleteNoteFromCloud(nota.id);
        }
     });
     card.appendChild(delBtn);
@@ -677,36 +796,54 @@ if (el.lightboxClose) {
 }
 
 /* =========================================================
-   PESQUISA E EDIÇÃO DE DISCIPLINAS
+   EVENTOS DE PESQUISA (DISCIPLINA, QUESTÃO E CONTEÚDO)
 ========================================================= */
 if (el.searchSubject) {
   el.searchSubject.addEventListener("input", () => renderTabs());
 }
 
+if (el.searchQuestao) {
+  el.searchQuestao.addEventListener("input", () => {
+    const subject = getActiveSubject();
+    if (subject) renderQuestions(subject);
+  });
+}
+
+if (el.searchConteudo) {
+  el.searchConteudo.addEventListener("input", () => {
+    const subject = getActiveSubject();
+    if (subject) renderNotes(subject);
+  });
+}
+
+/* =========================================================
+   EDIÇÃO E EXCLUSÃO DE DISCIPLINAS
+========================================================= */
 if (el.btnEditSubject) {
-  el.btnEditSubject.addEventListener("click", () => {
+  el.btnEditSubject.addEventListener("click", async () => {
     const subject = getActiveSubject();
     if (!subject) return;
 
     const novoNome = prompt("Digite o novo nome para a disciplina:", subject.nome);
     if (novoNome !== null && novoNome.trim() !== "") {
       subject.nome = novoNome.trim();
-      saveState();
       renderAll();
+      await saveSubject(subject);
     }
   });
 }
 
 if (el.btnDeleteSubject) {
-  el.btnDeleteSubject.addEventListener("click", () => {
+  el.btnDeleteSubject.addEventListener("click", async () => {
     const subject = getActiveSubject();
     if (!subject) return;
 
     if(confirm(`Tem certeza que deseja EXCLUIR a disciplina "${subject.nome}" e todo o seu conteúdo?`)) {
       state.disciplinas = state.disciplinas.filter(d => d.id !== subject.id);
-      state.activeSubjectId = null; 
-      saveState();
+      state.activeSubjectId = state.disciplinas.length ? state.disciplinas[0].id : null; 
+      
       renderAll();
+      await deleteSubjectFromCloud(subject.id);
     }
   });
 }
